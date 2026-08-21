@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pendências da Equipe</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2430;
+    --text-muted: #6b7280;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --danger: #dc2626;
+    --overdue: #fee2e2;
+    --overdue-text: #b91c1c;
+    --soon: #fef3c7;
+    --soon-text: #92400e;
+    --done-bg: #ecfdf5;
+    --done-text: #047857;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    padding: 20px 24px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { margin: 0; font-size: 1.3rem; }
+  header .sub { color: var(--text-muted); font-size: 0.85rem; margin-top: 2px; }
+  .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .toolbar input[type="text"], .toolbar select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    background: var(--card);
+  }
+  .toolbar .status-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .status-tabs button {
+    padding: 6px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    cursor: pointer;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+  }
+  .status-tabs button.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  button.primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  button.primary:hover { background: var(--accent-hover); }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+  }
+  .spacer { flex: 1; }
+  #list { display: flex; flex-direction: column; gap: 10px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+  }
+  .card-top { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+  .card-title { font-weight: 600; font-size: 1rem; margin: 0 0 4px 0; }
+  .card-desc { color: var(--text-muted); font-size: 0.87rem; margin: 0 0 8px 0; white-space: pre-wrap; }
+  .meta-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; font-size: 0.8rem; }
+  .badge {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: #eef2ff;
+    color: #4338ca;
+  }
+  .badge.status-Concluído { background: var(--done-bg); color: var(--done-text); }
+  .badge.status-Cancelado { background: #f3f4f6; color: #6b7280; }
+  .badge.status-Em-andamento { background: #e0f2fe; color: #0369a1; }
+  .prazo-tag { color: var(--text-muted); }
+  .prazo-tag.overdue { color: var(--overdue-text); font-weight: 700; }
+  .prazo-tag.soon { color: var(--soon-text); font-weight: 700; }
+  .card.overdue { border-left: 4px solid var(--overdue-text); }
+  .card.soon { border-left: 4px solid var(--soon-text); }
+  .card-actions { display: flex; gap: 6px; }
+  .card-actions button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .card-actions button:hover { background: var(--bg); }
+  .card-actions button.delete:hover { color: var(--danger); }
+  .empty-state { text-align: center; color: var(--text-muted); padding: 60px 20px; }
+  /* Modal */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 50;
+  }
+  .modal {
+    background: var(--card); border-radius: var(--radius);
+    padding: 22px; width: 100%; max-width: 460px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { margin-top: 0; font-size: 1.1rem; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.82rem; font-weight: 600; margin-bottom: 5px; color: var(--text-muted); }
+  .field input[type="text"], .field input[type="date"], .field select, .field textarea {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;
+    font-family: inherit;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: #1f2430; color: white; padding: 10px 18px; border-radius: 8px;
+    font-size: 0.85rem; opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; }
+  #toast.error { background: var(--danger); }
+  .hidden { display: none !important; }
+  .setup-box {
+    max-width: 520px; margin: 60px auto; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 24px;
+  }
+  .setup-box ol { padding-left: 20px; font-size: 0.88rem; color: var(--text-muted); line-height: 1.6; }
+  .setup-box input { width: 100%; padding: 9px 10px; border: 1px solid var(--border); border-radius: 8px; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Pendências da Equipe</h1>
+    <div class="sub" id="whoami">—</div>
+  </div>
+  <div style="display:flex; gap:8px;">
+    <button class="ghost" id="btnSettings">⚙ Configurações</button>
+    <button class="primary" id="btnNew">+ Nova pendência</button>
+  </div>
+</header>
+
+<div class="container" id="app">
+  <div class="toolbar">
+    <div class="status-tabs" id="statusTabs"></div>
+    <input type="text" id="search" placeholder="Buscar por título, responsável...">
+    <div class="spacer"></div>
+    <button class="ghost" id="btnRefresh">↻ Atualizar</button>
+  </div>
+  <div id="list"><div class="empty-state">Carregando...</div></div>
+</div>
+
+<!-- Modal criar/editar -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <h2 id="modalTitle">Nova pendência</h2>
+    <form id="form">
+      <input type="hidden" id="f_id">
+      <div class="field">
+        <label>Título *</label>
+        <input type="text" id="f_titulo" required>
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <textarea id="f_descricao"></textarea>
+      </div>
+      <div class="field">
+        <label>Responsável</label>
+        <input type="text" id="f_responsavel">
+      </div>
+      <div class="field">
+        <label>Status</label>
+        <select id="f_status">
+          <option>Pendente</option>
+          <option>Em andamento</option>
+          <option>Concluído</option>
+          <option>Cancelado</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Prazo (opcional)</label>
+        <input type="date" id="f_prazo">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="ghost" id="btnCancel">Cancelar</button>
+        <button type="submit" class="primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Config inicial -->
+<div class="overlay hidden" id="setupOverlay">
+  <div class="setup-box">
+    <h2>Configurar conexão</h2>
+    <p style="font-size:0.88rem; color:var(--text-muted);">
+      Esta interface guarda as pendências numa Google Sheet, através de um
+      "Apps Script Web App". Cole abaixo a URL de implantação
+      (veja <code>apps-script/Code.gs</code> no repositório para o passo a passo).
+    </p>
+    <input type="text" id="setupUrl" placeholder="https://script.google.com/macros/s/AKfycbw81OwcaHj1X2PBFgYoZIyPJGLzelUD0_EqiPrz5hG-p46oMhTSF4vt1FWDy1mfKKy__w/exec">
+    <label style="font-size:0.82rem; font-weight:600; color:var(--text-muted); display:block; margin-top:12px;">Seu nome</label>
+    <input type="text" id="setupName" placeholder="Como você quer aparecer nas pendências">
+    <div class="modal-actions">
+      <button class="primary" id="btnSaveSetup">Salvar e continuar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+(function () {
+  var LS_URL = 'pendencias_webapp_url';
+  var LS_NAME = 'pendencias_user_name';
+  var POLL_MS = 15000;
+
+  var state = {
+    items: [],
+    statusFilter: 'Todas',
+    search: '',
+    pollTimer: null
+  };
+
+  var els = {
+    list: document.getElementById('list'),
+    statusTabs: document.getElementById('statusTabs'),
+    search: document.getElementById('search'),
+    whoami: document.getElementById('whoami'),
+    overlay: document.getElementById('overlay'),
+    modalTitle: document.getElementById('modalTitle'),
+    form: document.getElementById('form'),
+    setupOverlay: document.getElementById('setupOverlay'),
+    setupUrl: document.getElementById('setupUrl'),
+    setupName: document.getElementById('setupName'),
+    toast: document.getElementById('toast')
+  };
+
+  var STATUSES = ['Pendente', 'Em andamento', 'Concluído', 'Cancelado'];
+
+  function getWebAppUrl() { return localStorage.getItem(LS_URL) || ''; }
+  function getUserName() { return localStorage.getItem(LS_NAME) || ''; }
+
+  function toast(msg, isError) {
+    els.toast.textContent = msg;
+    els.toast.className = isError ? 'show error' : 'show';
+    setTimeout(function () { els.toast.className = ''; }, 2500);
+  }
+
+  function api(action, payload) {
+    var url = getWebAppUrl();
+    if (!url) return Promise.reject(new Error('URL não configurada'));
+    if (action === 'get') {
+      return fetch(url, { method: 'GET' }).then(function (r) { return r.json(); });
+    }
+    var body = Object.assign({ action: action }, payload || {});
+    return fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // evita preflight CORS
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); });
+  }
+
+  function renderStatusTabs() {
+    var tabs = ['Todas'].concat(STATUSES);
+    els.statusTabs.innerHTML = '';
+    tabs.forEach(function (s) {
+      var btn = document.createElement('button');
+      btn.textContent = s;
+      if (s === state.statusFilter) btn.className = 'active';
+      btn.onclick = function () { state.statusFilter = s; renderList(); };
+      els.statusTabs.appendChild(btn);
+    });
+  }
+
+  function daysUntil(dateStr) {
+    if (!dateStr) return null;
+    var today = new Date();
+    today.setHours(0,0,0,0);
+    var d = new Date(dateStr + 'T00:00:00');
+    return Math.round((d - today) / 86400000);
+  }
+
+  function fmtDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    return parts[2] + '/' + parts[1] + '/' + parts[0];
+  }
+
+  function renderList() {
+    var items = state.items.slice();
+
+    if (state.statusFilter !== 'Todas') {
+      items = items.filter(function (i) { return i.Status === state.statusFilter; });
+    }
+    if (state.search) {
+      var q = state.search.toLowerCase();
+      items = items.filter(function (i) {
+        return (i.Titulo || '').toLowerCase().indexOf(q) >= 0 ||
+               (i.Responsavel || '').toLowerCase().indexOf(q) >= 0 ||
+               (i.Descricao || '').toLowerCase().indexOf(q) >= 0;
+      });
+    }
+    items.sort(function (a, b) {
+      if (!a.Prazo && !b.Prazo) return 0;
+      if (!a.Prazo) return 1;
+      if (!b.Prazo) return -1;
+      return a.Prazo < b.Prazo ? -1 : 1;
+    });
+
+    if (items.length === 0) {
+      els.list.innerHTML = '<div class="empty-state">Nenhuma pendência encontrada.</div>';
+      return;
+    }
+
+    els.list.innerHTML = '';
+    items.forEach(function (item) {
+      var card = document.createElement('div');
+      card.className = 'card';
+
+      var isDone = item.Status === 'Concluído' || item.Status === 'Cancelado';
+      var days = daysUntil(item.Prazo);
+      var overdue = !isDone && days !== null && days < 0;
+      var soon = !isDone && days !== null && days >= 0 && days <= 3;
+      if (overdue) card.classList.add('overdue');
+      else if (soon) card.classList.add('soon');
+
+      var prazoLabel = '';
+      if (item.Prazo) {
+        prazoLabel = fmtDate(item.Prazo);
+        if (overdue) prazoLabel += ' (atrasado ' + Math.abs(days) + 'd)';
+        else if (soon) prazoLabel += days === 0 ? ' (hoje)' : ' (em ' + days + 'd)';
+      }
+
+      var statusClass = 'status-' + item.Status.replace(' ', '-');
+
+      card.innerHTML =
+        '<div class="card-top">' +
+          '<div>' +
+            '<p class="card-title"></p>' +
+            (item.Descricao ? '<p class="card-desc"></p>' : '') +
+          '</div>' +
+          '<div class="card-actions">' +
+            '<button class="edit">Editar</button>' +
+            '<button class="delete">Excluir</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="meta-row">' +
+          '<span class="badge ' + statusClass + '"></span>' +
+          (item.Responsavel ? '<span>👤 <span class="resp"></span></span>' : '') +
+          (prazoLabel ? '<span class="prazo-tag ' + (overdue ? 'overdue' : soon ? 'soon' : '') + '">📅 <span class="prazo"></span></span>' : '') +
+        '</div>';
+
+      card.querySelector('.card-title').textContent = item.Titulo;
+      if (item.Descricao) card.querySelector('.card-desc').textContent = item.Descricao;
+      card.querySelector('.badge').textContent = item.Status;
+      if (item.Responsavel) card.querySelector('.resp').textContent = item.Responsavel;
+      if (prazoLabel) card.querySelector('.prazo').textContent = prazoLabel;
+
+      card.querySelector('.edit').onclick = function () { openModal(item); };
+      card.querySelector('.delete').onclick = function () { removeItem(item); };
+
+      els.list.appendChild(card);
+    });
+  }
+
+  function loadItems(showToast) {
+    return api('get').then(function (res) {
+      if (!res.ok) throw new Error(res.error || 'Erro ao carregar');
+      state.items = res.items || [];
+      renderList();
+      if (showToast) toast('Atualizado');
+    }).catch(function (err) {
+      els.list.innerHTML = '<div class="empty-state">Erro ao carregar pendências: ' + err.message + '</div>';
+    });
+  }
+
+  function openModal(item) {
+    els.modalTitle.textContent = item ? 'Editar pendência' : 'Nova pendência';
+    document.getElementById('f_id').value = item ? item.ID : '';
+    document.getElementById('f_titulo').value = item ? item.Titulo : '';
+    document.getElementById('f_descricao').value = item ? item.Descricao : '';
+    document.getElementById('f_responsavel').value = item ? item.Responsavel : getUserName();
+    document.getElementById('f_status').value = item ? item.Status : 'Pendente';
+    document.getElementById('f_prazo').value = item ? item.Prazo : '';
+    els.overlay.classList.remove('hidden');
+    document.getElementById('f_titulo').focus();
+  }
+
+  function closeModal() { els.overlay.classList.add('hidden'); }
+
+  function removeItem(item) {
+    if (!confirm('Excluir "' + item.Titulo + '"?')) return;
+    api('delete', { id: item.ID }).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      toast('Pendência excluída');
+      loadItems();
+    }).catch(function (err) { toast('Erro: ' + err.message, true); });
+  }
+
+  els.form.onsubmit = function (e) {
+    e.preventDefault();
+    var id = document.getElementById('f_id').value;
+    var payload = {
+      titulo: document.getElementById('f_titulo').value.trim(),
+      descricao: document.getElementById('f_descricao').value.trim(),
+      responsavel: document.getElementById('f_responsavel').value.trim(),
+      status: document.getElementById('f_status').value,
+      prazo: document.getElementById('f_prazo').value,
+      editadoPor: getUserName()
+    };
+    if (!payload.titulo) return;
+
+    var action = id ? 'update' : 'create';
+    if (id) payload.id = id;
+
+    api(action, payload).then(function (res) {
+      if (!res.ok) throw new Error(res.error);
+      toast(id ? 'Pendência atualizada' : 'Pendência criada');
+      closeModal();
+      loadItems();
+    }).catch(function (err) { toast('Erro: ' + err.message, true); });
+  };
+
+  document.getElementById('btnCancel').onclick = closeModal;
+  document.getElementById('btnNew').onclick = function () { openModal(null); };
+  document.getElementById('btnRefresh').onclick = function () { loadItems(true); };
+  els.search.oninput = function () { state.search = els.search.value; renderList(); };
+
+  document.getElementById('btnSettings').onclick = function () {
+    els.setupUrl.value = getWebAppUrl();
+    els.setupName.value = getUserName();
+    els.setupOverlay.classList.remove('hidden');
+  };
+
+  document.getElementById('btnSaveSetup').onclick = function () {
+    var url = els.setupUrl.value.trim();
+    var name = els.setupName.value.trim();
+    if (!url) { toast('Informe a URL do Apps Script', true); return; }
+    localStorage.setItem(LS_URL, url);
+    localStorage.setItem(LS_NAME, name);
+    els.setupOverlay.classList.add('hidden');
+    init();
+  };
+
+  function startPolling() {
+    if (state.pollTimer) clearInterval(state.pollTimer);
+    state.pollTimer = setInterval(function () { loadItems(false); }, POLL_MS);
+  }
+
+  function init() {
+    els.whoami.textContent = getUserName() ? ('Logado como ' + getUserName()) : '';
+    renderStatusTabs();
+    if (!getWebAppUrl()) {
+      els.setupOverlay.classList.remove('hidden');
+      els.list.innerHTML = '<div class="empty-state">Configure a conexão para começar.</div>';
+      return;
+    }
+    els.setupOverlay.classList.add('hidden');
+    loadItems();
+    startPolling();
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
